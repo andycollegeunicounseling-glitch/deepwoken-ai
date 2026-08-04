@@ -5,7 +5,6 @@ import sys
 
 os.makedirs('data', exist_ok=True)
 
-# Disguise the request to look exactly like a normal Chrome browser
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -19,24 +18,19 @@ params = {
     "action": "query",
     "format": "json",
     "list": "allpages",
-    "aplimit": "10" # Keeping it low to test
+    "aplimit": "10" # Still testing with 10
 }
 
-# Test the connection
 response = requests.get(url, headers=headers, params=params)
 print(f"Server Status Code: {response.status_code}")
 
-# Check if Cloudflare blocked us
 if response.status_code != 200:
     print("ERROR: Fandom blocked the request!")
     sys.exit(1)
 
 data = response.json()
-print("Successfully connected!")
-
 wiki_data = []
 
-# Process the pages
 if 'query' in data and 'allpages' in data['query']:
     pages = data['query']['allpages']
     
@@ -44,20 +38,32 @@ if 'query' in data and 'allpages' in data['query']:
         title = page['title']
         print(f"Downloading: {title}")
         
+        # CHANGED: Now asking for raw 'revisions' instead of 'extracts'
         content_params = {
             "action": "query",
             "format": "json",
             "titles": title,
-            "prop": "extracts",
-            "explaintext": True
+            "prop": "revisions",
+            "rvprop": "content",
+            "rvslots": "main"
         }
         res = requests.get(url, headers=headers, params=content_params).json()
         
         pages_dict = res.get('query', {}).get('pages', {})
         for page_id, page_info in pages_dict.items():
-            text = page_info.get('extract', '')
-            if text and len(text.strip()) > 0:
-                wiki_data.append({"title": title, "content": text})
+            revisions = page_info.get('revisions', [])
+            if revisions:
+                rev = revisions[0]
+                text = ""
+                
+                # Handle different versions of the Fandom API formatting
+                if '*' in rev:
+                    text = rev['*']
+                elif 'slots' in rev and 'main' in rev['slots'] and '*' in rev['slots']['main']:
+                    text = rev['slots']['main']['*']
+                    
+                if text and len(text.strip()) > 0:
+                    wiki_data.append({"title": title, "content": text})
 
 # Save output
 with open('data/deepwoken_wiki.json', 'w', encoding='utf-8') as f:
