@@ -1,0 +1,36 @@
+name: Scrape Deepwoken Wiki
+
+on:
+  workflow_dispatch: 
+  schedule:
+    - cron: '0 0 * * *' 
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
+        
+      - name: Run Scraper
+        run: python scraper.py
+        
+      - name: Commit and Push New Data
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add data/
+          git commit -m "Auto-update wiki data" || echo "No changes to commit"
+          git push
