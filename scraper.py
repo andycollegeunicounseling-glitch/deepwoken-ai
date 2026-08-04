@@ -18,12 +18,10 @@ params = {
     "action": "query",
     "format": "json",
     "list": "allpages",
-    "aplimit": "10" # Still testing with 10
+    "aplimit": "500" # Max allowed by MediaWiki for regular users
 }
 
 response = requests.get(url, headers=headers, params=params)
-print(f"Server Status Code: {response.status_code}")
-
 if response.status_code != 200:
     print("ERROR: Fandom blocked the request!")
     sys.exit(1)
@@ -33,12 +31,11 @@ wiki_data = []
 
 if 'query' in data and 'allpages' in data['query']:
     pages = data['query']['allpages']
+    print(f"Found {len(pages)} pages to download. This might take a minute...")
     
     for page in pages:
         title = page['title']
-        print(f"Downloading: {title}")
         
-        # CHANGED: Now asking for raw 'revisions' instead of 'extracts'
         content_params = {
             "action": "query",
             "format": "json",
@@ -55,8 +52,6 @@ if 'query' in data and 'allpages' in data['query']:
             if revisions:
                 rev = revisions[0]
                 text = ""
-                
-                # Handle different versions of the Fandom API formatting
                 if '*' in rev:
                     text = rev['*']
                 elif 'slots' in rev and 'main' in rev['slots'] and '*' in rev['slots']['main']:
@@ -65,7 +60,6 @@ if 'query' in data and 'allpages' in data['query']:
                 if text and len(text.strip()) > 0:
                     wiki_data.append({"title": title, "content": text})
 
-# Save output
 with open('data/deepwoken_wiki.json', 'w', encoding='utf-8') as f:
     json.dump(wiki_data, f, indent=4)
 
